@@ -1,5 +1,3 @@
-import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QLabel, QLineEdit, QMessageBox
 import random
 
 class MyArray:
@@ -16,10 +14,23 @@ class MyArray:
         self.array = [[random.randint(min_val, max_val) for _ in range(cols)] for _ in range(rows)]
 
     def __len__(self):
-        return len(self.array)
+        if all(isinstance(row, list) for row in self.array):
+            # Multidimensional array
+            rows = len(self.array)
+            cols = len(self.array[0]) if rows > 0 else 0
+            print(f"Многомерный массив: длина - {rows} строк, {cols} столбцов")
+            return rows
+        else:
+            # One-dimensional array
+            length = len(self.array)
+            print(f"Одномерный массив: длина - 1 строка, {length} столбцов")
+            return length
 
     def show(self, separator=' '):
-        return '\n'.join([separator.join(f"{elem:.0f}" if elem.is_integer() else f"{elem:.1f}" for elem in row) for row in self.array])
+        if all(isinstance(row, list) for row in self.array):
+            return '\n'.join([separator.join(f"{elem:.0f}" if isinstance(elem, (int, float)) and elem.is_integer() else f"{elem:.1f}" for elem in row) for row in self.array])
+        else:
+            return separator.join(f"{elem:.0f}" if isinstance(elem, (int, float)) and elem.is_integer() else f"{elem:.1f}" for elem in self.array)
 
     def __getitem__(self, index):
         return self.array[index]
@@ -32,7 +43,7 @@ class MyArray:
             return MyArray([[elem + other for elem in row] for row in self.array])
         elif isinstance(other, MyArray):
             if len(self.array) != len(other.array) or len(self.array[0]) != len(other.array[0]):
-                raise ValueError("Arrays must have the same dimensions for addition")
+                raise ValueError("Массивы должны быть одной размерности для сложения")
             return MyArray([[self.array[i][j] + other.array[i][j] for j in range(len(self.array[i]))] for i in range(len(self.array))])
         else:
             raise TypeError("Unsupported operand type")
@@ -42,7 +53,7 @@ class MyArray:
             return MyArray([[elem - other for elem in row] for row in self.array])
         elif isinstance(other, MyArray):
             if len(self.array) != len(other.array) or len(self.array[0]) != len(other.array[0]):
-                raise ValueError("Arrays must have the same dimensions for subtraction")
+                raise ValueError("Массивы должны быть одной размерности для вычитания")
             return MyArray([[self.array[i][j] - other.array[i][j] for j in range(len(self.array[i]))] for i in range(len(self.array))])
         else:
             raise TypeError("Unsupported operand type")
@@ -52,7 +63,7 @@ class MyArray:
             return MyArray([[elem * other for elem in row] for row in self.array])
         elif isinstance(other, MyArray):
             if len(self.array) != len(other.array) or len(self.array[0]) != len(other.array[0]):
-                raise ValueError("Arrays must have the same dimensions for multiplication")
+                raise ValueError("Массивы должны быть одной размерности для умножения")
             return MyArray([[self.array[i][j] * other.array[i][j] for j in range(len(self.array[i]))] for i in range(len(self.array))])
         else:
             raise TypeError("Unsupported operand type")
@@ -62,18 +73,35 @@ class MyArray:
             return MyArray([[elem / other for elem in row] for row in self.array])
         elif isinstance(other, MyArray):
             if len(self.array) != len(other.array) or len(self.array[0]) != len(other.array[0]):
-                raise ValueError("Arrays must have the same dimensions for division")
+                raise ValueError("Массивы должны быть одной размерности для деления")
             return MyArray([[self.array[i][j] / other.array[i][j] for j in range(len(self.array[i]))] for i in range(len(self.array))])
         else:
             raise TypeError("Unsupported operand type")
 
     def __gt__(self, other):
         if isinstance(other, (int, float)):
-            return MyArray([[elem > other for elem in row] for row in self.array])
+            result = []
+            if all(isinstance(row, list) for row in self.array):
+                # Multidimensional array
+                for i, row in enumerate(self.array):
+                    for j, elem in enumerate(row):
+                        if elem > other:
+                            result.append((i, j, elem))
+            else:
+                # One-dimensional array
+                for i, elem in enumerate(self.array):
+                    if elem > other:
+                        result.append((i, elem))
+            return result
         elif isinstance(other, MyArray):
             if len(self.array) != len(other.array) or len(self.array[0]) != len(other.array[0]):
-                raise ValueError("Arrays must have the same dimensions for comparison")
-            return MyArray([[self.array[i][j] > other.array[i][j] for j in range(len(self.array[i]))] for i in range(len(self.array))])
+                raise ValueError("Массивы должны быть одной размерности для сравнения")
+            result = []
+            for i in range(len(self.array)):
+                for j in range(len(self.array[i])):
+                    if self.array[i][j] > other.array[i][j]:
+                        result.append((i, j, self.array[i][j]))
+            return result
         else:
             raise TypeError("Unsupported operand type")
 
@@ -81,264 +109,92 @@ class MyArray:
         self.array = [sorted([elem for elem in row if elem % 2 == 0]) for row in self.array]
 
     def add_element_to_start(self, element):
-        self.array.insert(0, element)
+        if all(isinstance(row, list) for row in self.array):
+            self.array[0][0] = element
+        else:
+            self.array.insert(0, element)
 
     def remove_element_from_start(self):
-        if self.array:
-            self.array.pop(0)
+        if all(isinstance(row, list) for row in self.array):
+            self.array[0][0] = 0
+        else:
+            if self.array:
+                self.array.pop(0)
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-
-        self.array = MyArray()
-
-        self.setWindowTitle("MyArray Application")
-        self.setGeometry(100, 100, 800, 600)
-
-        self.initUI()
-
-    def initUI(self):
-        layout = QVBoxLayout()
-
-        # Manual Fill Section
-        self.input_label = QLabel("Enter array elements (comma separated, rows separated by semicolon):")
-        self.input_field = QLineEdit(self)
-        self.fill_button = QPushButton("Manual Fill", self)
-        self.fill_button.clicked.connect(self.manual_fill)
-
-        # Auto Fill Section
-        auto_fill_layout = QHBoxLayout()
-
-        self.rows_label = QLabel("Rows:")
-        self.rows_input = QLineEdit(self)
-
-        self.cols_label = QLabel("Columns:")
-        self.cols_input = QLineEdit(self)
-
-        self.min_val_label = QLabel("Min Value:")
-        self.min_val_input = QLineEdit(self)
-
-        self.max_val_label = QLabel("Max Value:")
-        self.max_val_input = QLineEdit(self)
-
-        auto_fill_layout.addWidget(self.rows_label)
-        auto_fill_layout.addWidget(self.rows_input)
-        auto_fill_layout.addWidget(self.cols_label)
-        auto_fill_layout.addWidget(self.cols_input)
-        auto_fill_layout.addWidget(self.min_val_label)
-        auto_fill_layout.addWidget(self.min_val_input)
-        auto_fill_layout.addWidget(self.max_val_label)
-        auto_fill_layout.addWidget(self.max_val_input)
-
-        self.auto_fill_button = QPushButton("Auto Fill", self)
-        self.auto_fill_button.clicked.connect(self.auto_fill)
-
-        # Show Array Section
-        self.show_button = QPushButton("Show Array", self)
-        self.show_button.clicked.connect(self.show_array)
-
-        # Add Element to Start Section
-        self.add_element_label = QLabel("Element to add at start:")
-        self.add_element_input = QLineEdit(self)
-        self.add_element_button = QPushButton("Add Element to Start", self)
-        self.add_element_button.clicked.connect(self.add_element_to_start)
-
-        # Remove Element from Start Section
-        self.remove_element_button = QPushButton("Remove Element from Start", self)
-        self.remove_element_button.clicked.connect(self.remove_element_from_start)
-
-        # Sort Even Elements Section
-        self.sort_even_button = QPushButton("Sort Even Elements", self)
-        self.sort_even_button.clicked.connect(self.sort_even)
-
-        # Arithmetic Operations Section
-        self.arithmetic_label = QLabel("Arithmetic Operation (value or array):")
-        self.arithmetic_input = QLineEdit(self)
-        self.add_button = QPushButton("Add", self)
-        self.add_button.clicked.connect(self.add_operation)
-        self.sub_button = QPushButton("Subtract", self)
-        self.sub_button.clicked.connect(self.sub_operation)
-        self.mul_button = QPushButton("Multiply", self)
-        self.mul_button.clicked.connect(self.mul_operation)
-        self.div_button = QPushButton("Divide", self)
-        self.div_button.clicked.connect(self.div_operation)
-
-        # Output Field
-        self.output_field = QTextEdit(self)
-        self.output_field.setReadOnly(True)
-
-        # Adding widgets to layout
-        layout.addWidget(self.input_label)
-        layout.addWidget(self.input_field)
-        layout.addWidget(self.fill_button)
-        layout.addLayout(auto_fill_layout)
-        layout.addWidget(self.auto_fill_button)
-        layout.addWidget(self.show_button)
-        layout.addWidget(self.add_element_label)
-        layout.addWidget(self.add_element_input)
-        layout.addWidget(self.add_element_button)
-        layout.addWidget(self.remove_element_button)
-        layout.addWidget(self.sort_even_button)
-        layout.addWidget(self.arithmetic_label)
-        layout.addWidget(self.arithmetic_input)
-        layout.addWidget(self.add_button)
-        layout.addWidget(self.sub_button)
-        layout.addWidget(self.mul_button)
-        layout.addWidget(self.div_button)
-        layout.addWidget(self.output_field)
-
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
-
-    # Manual Fill Function
-    def manual_fill(self):
-        try:
-            input_text = self.input_field.text()
-            rows = input_text.split(';')
-            array = [list(map(int, row.split(','))) for row in rows]
-            self.array.manual_fill(array)
-            self.output_field.append("Array manually filled.")
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Please enter valid integers separated by commas and rows separated by semicolons.")
-
-    # Auto Fill Function
-    def auto_fill(self):
-        rows = self.rows_input.text()
-        cols = self.cols_input.text()
-        min_val = self.min_val_input.text()
-        max_val = self.max_val_input.text()
-
-        if not rows or not cols or not min_val or not max_val:
-            QMessageBox.warning(self, "Error", "All fields are required for Auto Fill.")
-            return
-
-        try:
-            rows = int(rows)
-            cols = int(cols)
-            min_val = int(min_val)
-            max_val = int(max_val)
-
-            self.array.auto_fill(rows, cols, min_val, max_val)
-            self.output_field.append("Array auto filled.")
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Please enter valid integers for Rows, Columns, Min Value, and Max Value.")
-
-    # Show Array Function
-    def show_array(self):
-        self.output_field.append(self.array.show())
-
-    # Add Element to Start Function
-    def add_element_to_start(self):
-        element = self.add_element_input.text()
-        if not element:
-            QMessageBox.warning(self, "Error", "Please enter a valid element.")
-            return
-
-        try:
-            element = int(element)
-            self.array.add_element_to_start(element)
-            self.output_field.append("Element added to start.")
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Please enter a valid integer.")
-
-    # Remove Element from Start Function
-    def remove_element_from_start(self):
-        self.array.remove_element_from_start()
-        self.output_field.append("Element removed from start.")
-
-    # Sort Even Elements Function
-    def sort_even(self):
-        self.array.sort_even()
-        self.output_field.append("Even elements sorted.")
-
-    # Add Operation Function
-    def add_operation(self):
-        value = self.arithmetic_input.text()
-        if not value:
-            QMessageBox.warning(self, "Error", "Please enter a valid value.")
-            return
-
-        try:
-            if ';' in value:
-                rows = value.split(';')
-                array = [list(map(int, row.split(','))) for row in rows]
-                second_array = MyArray(array)
-                self.array = self.array + second_array
-                self.output_field.append("Array after addition of second array.")
+    def slice(self, *args):
+        if all(isinstance(row, list) for row in self.array):
+            if len(args) == 4:
+                row_start, row_end, col_start, col_end = args
+                return MyArray([row[col_start:col_end] for row in self.array[row_start:row_end]])
             else:
-                value = int(value)
-                self.array = self.array + value
-                self.output_field.append("Array after addition operation.")
-        except ValueError as e:
-            QMessageBox.warning(self, "Error", str(e))
-
-    # Subtract Operation Function
-    def sub_operation(self):
-        value = self.arithmetic_input.text()
-        if not value:
-            QMessageBox.warning(self, "Error", "Please enter a valid value.")
-            return
-
-        try:
-            if ';' in value:
-                rows = value.split(';')
-                array = [list(map(int, row.split(','))) for row in rows]
-                second_array = MyArray(array)
-                self.array = self.array - second_array
-                self.output_field.append("Array after subtraction of second array.")
+                raise ValueError("For multidimensional arrays, provide row_start, row_end, col_start, col_end")
+        else:
+            if len(args) == 2:
+                start, end = args
+                return MyArray(self.array[start:end])
             else:
-                value = int(value)
-                self.array = self.array - value
-                self.output_field.append("Array after subtraction operation.")
-        except ValueError as e:
-            QMessageBox.warning(self, "Error", str(e))
+                raise ValueError("For one-dimensional arrays, provide start and end indices")
+class MyMatrix(MyArray):
+    def count_columns_without_odd_elements(self):
+        count = 0
+        for col in range(len(self.array[0])):
+            if all(elem % 2 != 0 for elem in [row[col] for row in self.array]):
+                count += 1
+        return count
 
-    # Multiply Operation Function
-    def mul_operation(self):
-        value = self.arithmetic_input.text()
-        if not value:
-            QMessageBox.warning(self, "Error", "Please enter a valid value.")
-            return
 
-        try:
-            if ';' in value:
-                rows = value.split(';')
-                array = [list(map(int, row.split(','))) for row in rows]
-                second_array = MyArray(array)
-                self.array = self.array * second_array
-                self.output_field.append("Array after multiplication of second array.")
+    def sum_positive_even_elements_in_columns(self):
+        result = []
+        for col in range(len(self.array[0])):
+            sum_positive_even = sum(row[col] for row in self.array if row[col] > 0 and row[col] % 2 == 0)
+            if sum_positive_even == 0:
+                result.append((col, "Положительные элементы отсутствуют"))
             else:
-                value = int(value)
-                self.array = self.array * value
-                self.output_field.append("Array after multiplication operation.")
-        except ValueError as e:
-            QMessageBox.warning(self, "Error", str(e))
-
-    # Divide Operation Function
-    def div_operation(self):
-        value = self.arithmetic_input.text()
-        if not value:
-            QMessageBox.warning(self, "Error", "Please enter a valid value.")
-            return
-
-        try:
-            if ';' in value:
-                rows = value.split(';')
-                array = [list(map(int, row.split(','))) for row in rows]
-                second_array = MyArray(array)
-                self.array = self.array / second_array
-                self.output_field.append("Array after division of second array.")
-            else:
-                value = int(value)
-                self.array = self.array / value
-                self.output_field.append("Array after division operation.")
-        except ValueError as e:
-            QMessageBox.warning(self, "Error", str(e))
+                result.append((col, sum_positive_even))
+        return result
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+
+    array1 = MyArray([1, 2, 3, 4, 5])
+    print("Array 1 (one-dimensional):")
+    print(array1.show())
+    print("Length of Array 1:", len(array1))
+
+    array2 = MyArray([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    print("Array 2 (two-dimensional):")
+    print(array2.show())
+    print("Length of Array 2:", len(array2))
+
+    sliced_array1 = array1.slice(1, 4)
+    print("Sliced Array 1 (one-dimensional):")
+    print(sliced_array1.show())
+
+    sliced_array2 = array2.slice(1, 3, 1, 3)
+    print("Sliced Array 2 (two-dimensional):")
+    print(sliced_array2.show())
+
+    comparison_result1 = array1 > 3
+    print("вывод в формате столбец/элемент который больше заданного числа:")
+    print(comparison_result1)
+
+    comparison_result2 = array2 > 3
+    print("вывод в формате строка/столбец/элемент который больше заданного числа:")
+    print(comparison_result2)
+
+    array3 = MyArray([[2, 3, 4], [5, 6, 7], [8, 9, 10]])
+    comparison_result3 = array3 > array2
+    print("вывод в формате строка/столбец/элемент который больше:")
+    print(comparison_result3)
+
+    matrix = MyMatrix()
+    matrix.auto_fill(4, 4, -10, 10)
+    print("Matrix:")
+    print(matrix.show())
+
+    count_columns = matrix.count_columns_without_odd_elements()
+    print(f"Количество столбцов, не содержащих ни одного нечетного элемента: {count_columns}")
+
+    sum_positive_even_columns = matrix.sum_positive_even_elements_in_columns()
+    print("Сумма положительных четных элементов столбцов:")
+    for col in sum_positive_even_columns:
+        print(f"Column {col[0]}: {col[1]}")
